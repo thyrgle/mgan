@@ -2,6 +2,26 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset, Dataloader
+import torchvision
+
+class Pokemon(Dataset):
+    """ Pokemon data (loaded from data directory) """
+
+
+    def __init__(self, transform=None):
+        """
+        Args:
+            transform (callable, optional): Optional transform to be applied
+            on a sample.
+        """
+        pass
+
+    def __len__(self):
+        pass
+
+    def __getitem__(self, idx):
+        pass
 
 class Discriminator(nn.Module):
 
@@ -47,4 +67,4 @@ class Generator(nn.Module):
 
 
 if __name__ == "__main__":
-    discriminator = Discriminator()
+    pass
