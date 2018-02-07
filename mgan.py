@@ -16,12 +16,16 @@ class Pokemon(Dataset):
             on a sample.
         """
         self.pokemon = glob.glob("data/*.png")
+        self.transform = transform
 
     def __len__(self):
         return len(self.pokemon)
 
     def __getitem__(self, idx):
-        return self.pokemon[idx]
+        if self.transform:
+            return self.transform(self.pokemon[idx])
+        else:
+            return self.pokemon[idx]
 
 class Discriminator(nn.Module):
 
