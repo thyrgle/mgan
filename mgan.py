@@ -4,28 +4,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import glob
+from torchvision import transforms
 
 class Pokemon(Dataset):
     """ Pokemon data (loaded from data directory) """
 
 
-    def __init__(self, transform=None):
+    def __init__(self):
         """
         Args:
             transform (callable, optional): Optional transform to be applied
             on a sample.
         """
         self.pokemon = glob.glob("data/*.png")
-        self.transform = transform
+        self.transform = transforms.Compose([
+            transforms.Resize((100, 100)),
+            transforms.ToTensor()
+        ])
 
     def __len__(self):
         return len(self.pokemon)
 
     def __getitem__(self, idx):
-        if self.transform:
-            return self.transform(self.pokemon[idx])
-        else:
-            return self.pokemon[idx]
+        return self.transform(self.pokemon[idx])
 
 class Discriminator(nn.Module):
 
