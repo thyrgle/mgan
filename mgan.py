@@ -18,7 +18,7 @@ class Pokemon(Dataset):
         """
         self.pokemon = glob.glob("data/*.png")
         self.transform = transforms.Compose([
-            transforms.Resize((100, 100)),
+            transforms.Resize((300, 300)),
             transforms.ToTensor()
         ])
 
@@ -71,5 +71,9 @@ class Generator(nn.Module):
         return x
 
 
-if __name__ == "__main__":
+def main():
     pokemon = Pokemon()
+
+
+if __name__ == "__main__":
+    main()
