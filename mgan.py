@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import glob
 from torchvision import transforms
+from PIL import Image
 
 class Pokemon(Dataset):
     """ Pokemon data (loaded from data directory) """
@@ -16,7 +17,7 @@ class Pokemon(Dataset):
             transform (callable, optional): Optional transform to be applied
             on a sample.
         """
-        self.pokemon = glob.glob("data/*.png")
+        self.pokemon = [Image.open(g) for g in glob.glob("data/*.png")]
         self.transform = transforms.Compose([
             transforms.Resize((300, 300)),
             transforms.ToTensor()
@@ -27,6 +28,7 @@ class Pokemon(Dataset):
 
     def __getitem__(self, idx):
         return self.transform(self.pokemon[idx])
+
 
 class Discriminator(nn.Module):
 
@@ -72,7 +74,8 @@ class Generator(nn.Module):
 
 
 def main():
-    pokemon = Pokemon()
+    for pokemon in Pokemon():
+        print(pokemon)
 
 
 if __name__ == "__main__":
