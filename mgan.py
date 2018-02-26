@@ -27,7 +27,7 @@ class Pokemon(Dataset):
         return len(self.pokemon)
 
     def __getitem__(self, idx):
-        return self.transform(self.pokemon[idx])
+        return self.transform(self.pokemon[idx]), torch.ones(1)
 
 
 class Discriminator(nn.Module):
@@ -72,10 +72,27 @@ class Generator(nn.Module):
         x = F.relu(self.conv2(x))
         return x
 
+def train(epochs, d_steps, g_steps):
+    pokemon_dataset = Pokemon()
+    pokemon_loader = torch.utils.data.DataLoader(pokemon_dataset,
+                                                 batch_size=d_steps,
+                                                 shuffle=True,
+                                                 num_workers=4)
+    discriminator = Discriminator()
+    generator = Generator()
+    for epoch in range(epochs):
+        for (inputs, targets) in pokemon_loader:
+            # Train the discriminator.
+            inputs = Variable(inputs)
+            targets = Variable(targets)
+
+            result = discriminator(inputs)
+        for g_index in range(d_steps):
+            # Train the generator.
+            pass
 
 def main():
-    for pokemon in Pokemon():
-        print(pokemon)
+    train(1000, 20, 100)
 
 
 if __name__ == "__main__":
