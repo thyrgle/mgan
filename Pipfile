@@ -1,0 +1,18 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[packages]
+
+"866e083" = {file = "http://download.pytorch.org/whl/cu90/torch-0.3.1-cp36-cp36m-linux_x86_64.whl"}
+
+[dev-packages]
+
+
+
+[requires]
+
+python_version = "3.6"
