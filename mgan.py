@@ -7,6 +7,10 @@ import glob
 from torchvision import transforms
 from PIL import Image
 
+# For truncation errors
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 class Pokemon(Dataset):
     """ Pokemon data (loaded from data directory) """
 
@@ -55,7 +59,6 @@ class Discriminator(nn.Module):
         x = F.max_pool2d(F.relu(self.conv1(x)), 2)
         x = F.max_pool2d(F.relu(self.conv2(x)), 2)
         x = x.view(-1, self._num_flat_features(x))
-        print(x)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
