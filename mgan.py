@@ -76,7 +76,7 @@ class Generator(nn.Module):
        
         # 5 x 5 square convolution.
         self.conv1 = nn.Conv2d(3, 6, 5)
-        self.conv2 = nn.Conv2d(6, 6, 5)
+        self.conv2 = nn.Conv2d(6, 4, 5)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
@@ -95,6 +95,7 @@ def train(epochs, d_steps, g_steps):
     for epoch in range(epochs):
         for (inputs, targets) in pokemon_loader:
             # Train the discriminator.
+            # Train on actual data.
             inputs = Variable(inputs)
             targets = Variable(targets)
 
@@ -103,12 +104,19 @@ def train(epochs, d_steps, g_steps):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            # Train on fake data.
+            fake_data = generator(Variable(torch.randn(1, 3, 308, 308)))
+            fake_result = discriminator(fake_data)
+            fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1)))
+            fake_loss.backward()
+            optimizer.step()
+            
         for g_index in range(d_steps):
             # Train the generator.
             pass
 
 def main():
-    train(1000, 20, 100)
+    train(1, 20, 100)
 
 
 if __name__ == "__main__":
