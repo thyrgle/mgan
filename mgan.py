@@ -56,8 +56,10 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         # Almost the same as the one in the tutorial
-        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
-        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, 2, 2)
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2, 2)
         x = x.view(-1, self._num_flat_features(x))
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -90,39 +92,44 @@ def train(epochs, d_steps, g_steps):
                                                  shuffle=True,
                                                  num_workers=4)
     discriminator = Discriminator()
+    discriminator.cuda()
     generator = Generator()
+    generator.cuda()
     d_optimizer = torch.optim.Adam(discriminator.parameters())
     g_optimizer = torch.optim.Adam(generator.parameters())
     for epoch in range(epochs):
         for (inputs, targets) in pokemon_loader:
             # Train the discriminator.
             # Train on actual data.
-            inputs = Variable(inputs)
-            targets = Variable(targets)
+            inputs = Variable(inputs.cuda())
+            targets = Variable(targets.cuda())
 
             result = discriminator(inputs)
             loss = F.mse_loss(result, targets)
+            loss.cuda()
             d_optimizer.zero_grad()
             loss.backward()
             d_optimizer.step()
             # Train on fake data.
-            fake_data = generator(Variable(torch.randn(1, 3, 308, 308)))
+            fake_data = generator(Variable(torch.randn(1, 3, 308, 308).cuda()))
             fake_result = discriminator(fake_data)
-            fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1)))
+            fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1).cuda()))
             fake_loss.backward()
             d_optimizer.step()
             
         for g_index in range(d_steps):
             g_optimizer.zero_grad()
             # Train the generator.
-            fake_data = generator(Variable(torch.randn(1, 3, 308, 308)))
+            fake_data = generator(Variable(torch.randn(1, 3, 308, 308).cuda()))
             result = discriminator(fake_data)
-            loss = F.mse_loss(result, Variable(torch.ones(1)))
+            loss = F.mse_loss(result, Variable(torch.ones(1).cuda()))
+            loss.cuda()
             loss.backward()
             g_optimizer.step()
 
         # Generate example image.
-        poke = generator(Variable(torch.randn(1, 3, 308, 308))).data
+        poke = generator(
+            Variable(torch.randn(1, 3, 308, 308).cuda())).data.cpu()
         poke_pil = transforms.ToPILImage()(poke.view(4, 300, 300))
         poke_pil.save("test.png")
 
