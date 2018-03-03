@@ -91,7 +91,8 @@ def train(epochs, d_steps, g_steps):
                                                  num_workers=4)
     discriminator = Discriminator()
     generator = Generator()
-    optimizer = torch.optim.Adam(discriminator.parameters())
+    d_optimizer = torch.optim.Adam(discriminator.parameters())
+    g_optimizer = torch.optim.Adam(generator.parameters())
     for epoch in range(epochs):
         for (inputs, targets) in pokemon_loader:
             # Train the discriminator.
@@ -101,19 +102,30 @@ def train(epochs, d_steps, g_steps):
 
             result = discriminator(inputs)
             loss = F.mse_loss(result, targets)
-            optimizer.zero_grad()
+            d_optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            d_optimizer.step()
             # Train on fake data.
             fake_data = generator(Variable(torch.randn(1, 3, 308, 308)))
             fake_result = discriminator(fake_data)
             fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1)))
             fake_loss.backward()
-            optimizer.step()
+            d_optimizer.step()
             
         for g_index in range(d_steps):
+            g_optimizer.zero_grad()
             # Train the generator.
-            pass
+            fake_data = generator(Variable(torch.randn(1, 3, 308, 308)))
+            result = discriminator(fake_data)
+            loss = F.mse_loss(result, Variable(torch.ones(1)))
+            loss.backward()
+            g_optimizer.step()
+
+        # Generate example image.
+        poke = generator(Variable(torch.randn(1, 3, 308, 308))).data
+        poke_pil = transforms.ToPILImage()(poke.view(4, 300, 300))
+        poke_pil.save("test.png")
+
 
 def main():
     train(1, 20, 100)
