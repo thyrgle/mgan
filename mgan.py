@@ -56,13 +56,13 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         # Almost the same as the one in the tutorial
-        x = F.relu(self.conv1(x))
+        x = F.leaky_relu(self.conv1(x))
         x = F.max_pool2d(x, 2, 2)
-        x = F.relu(self.conv2(x))
+        x = F.leaky_relu(self.conv2(x))
         x = F.max_pool2d(x, 2, 2)
         x = x.view(-1, self._num_flat_features(x))
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = F.leaky_relu(self.fc1(x))
+        x = F.leaky_relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
@@ -81,8 +81,8 @@ class Generator(nn.Module):
         self.conv2 = nn.Conv2d(6, 4, 5)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.leaky_relu(self.conv1(x))
+        x = F.leaky_relu(self.conv2(x))
         return x
 
 def train(epochs, d_steps, g_steps):
@@ -98,6 +98,7 @@ def train(epochs, d_steps, g_steps):
     d_optimizer = torch.optim.Adam(discriminator.parameters())
     g_optimizer = torch.optim.Adam(generator.parameters())
     for epoch in range(epochs):
+        print(epoch)
         for (inputs, targets) in pokemon_loader:
             # Train the discriminator.
             # Train on actual data.
@@ -117,15 +118,15 @@ def train(epochs, d_steps, g_steps):
             fake_loss.backward()
             d_optimizer.step()
             
-        for g_index in range(d_steps):
-            g_optimizer.zero_grad()
-            # Train the generator.
-            fake_data = generator(Variable(torch.randn(1, 3, 308, 308).cuda()))
-            result = discriminator(fake_data)
-            loss = F.mse_loss(result, Variable(torch.ones(1).cuda()))
-            loss.cuda()
-            loss.backward()
-            g_optimizer.step()
+            for g_index in range(d_steps):
+                g_optimizer.zero_grad()
+                # Train the generator.
+                fake_data = generator(Variable(torch.randn(1, 3, 308, 308).cuda()))
+                result = discriminator(fake_data)
+                loss = F.mse_loss(result, Variable(torch.ones(1).cuda()))
+                loss.cuda()
+                loss.backward()
+                g_optimizer.step()
 
         # Generate example image.
         poke = generator(
@@ -135,7 +136,7 @@ def train(epochs, d_steps, g_steps):
 
 
 def main():
-    train(1, 20, 100)
+    train(5, 5, 5)
 
 
 if __name__ == "__main__":
