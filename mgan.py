@@ -88,7 +88,7 @@ class Generator(nn.Module):
 def train(epochs, d_steps, g_steps):
     pokemon_dataset = Pokemon()
     pokemon_loader = torch.utils.data.DataLoader(pokemon_dataset,
-                                                 batch_size=1,
+                                                 batch_size=d_steps,
                                                  shuffle=True,
                                                  num_workers=4)
     discriminator = Discriminator()
@@ -136,7 +136,7 @@ def train(epochs, d_steps, g_steps):
 
 
 def main():
-    train(5, 5, 5)
+    train(30, 5, 5)
 
 
 if __name__ == "__main__":
