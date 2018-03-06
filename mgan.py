@@ -6,6 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 import glob
 from torchvision import transforms
 from PIL import Image
+from itertools import islice
 
 # For truncation errors
 from PIL import ImageFile
@@ -43,9 +44,8 @@ class Discriminator(nn.Module):
         self.conv1 = nn.Conv2d(4, 6, 5)
         self.conv2 = nn.Conv2d(6, 16, 5)
 
-        self.fc1 = nn.Linear(82944, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 1)
+        self.fc1 = nn.Linear(82944, 84)
+        self.fc2 = nn.Linear(84, 1)
 
     def _num_flat_features(self, x):
         size = x.size()[1:]  # all dimensions except the batch dimension
@@ -63,7 +63,6 @@ class Discriminator(nn.Module):
         x = x.view(-1, self._num_flat_features(x))
         x = F.leaky_relu(self.fc1(x))
         x = F.leaky_relu(self.fc2(x))
-        x = self.fc3(x)
         return x
 
 
@@ -77,13 +76,22 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
        
         # 5 x 5 square convolution.
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.conv2 = nn.Conv2d(6, 4, 5)
+        self.conv1 = nn.ConvTranspose2d(3, 6, 5, stride=2)
+        self.conv2 = nn.ConvTranspose2d(6, 6, 5, stride=2)
+        self.conv3 = nn.ConvTranspose2d(6, 6, 5, stride=2)
+        self.conv4 = nn.ConvTranspose2d(6, 4, 4, stride=2, padding=24)
 
     def forward(self, x):
         x = F.leaky_relu(self.conv1(x))
         x = F.leaky_relu(self.conv2(x))
+        x = F.leaky_relu(self.conv3(x))
+        x = F.leaky_relu(self.conv4(x))
         return x
+
+
+def to_generator(iterator):
+    for x in iterator:
+        yield x
 
 def train(epochs, d_steps, g_steps):
     pokemon_dataset = Pokemon()
@@ -91,6 +99,7 @@ def train(epochs, d_steps, g_steps):
                                                  batch_size=d_steps,
                                                  shuffle=True,
                                                  num_workers=4)
+    pokemon_generator = to_generator(pokemon_loader)
     discriminator = Discriminator()
     discriminator.cuda()
     generator = Generator()
@@ -99,7 +108,7 @@ def train(epochs, d_steps, g_steps):
     g_optimizer = torch.optim.Adam(generator.parameters())
     for epoch in range(epochs):
         print(epoch)
-        for (inputs, targets) in pokemon_loader:
+        for (inputs, targets) in islice(pokemon_generator, d_steps):
             # Train the discriminator.
             # Train on actual data.
             inputs = Variable(inputs.cuda())
@@ -112,31 +121,31 @@ def train(epochs, d_steps, g_steps):
             loss.backward()
             d_optimizer.step()
             # Train on fake data.
-            fake_data = generator(Variable(torch.randn(1, 3, 308, 308).cuda()))
-            fake_result = discriminator(fake_data)
-            fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1).cuda()))
-            fake_loss.backward()
-            d_optimizer.step()
+            for _ in range(d_steps):
+                fake_data = generator(Variable(torch.randn(1, 3, 19, 19).cuda()))
+                fake_result = discriminator(fake_data)
+                fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1).cuda()))
+                fake_loss.backward()
+                d_optimizer.step()
             
-            for g_index in range(d_steps):
-                g_optimizer.zero_grad()
-                # Train the generator.
-                fake_data = generator(Variable(torch.randn(1, 3, 308, 308).cuda()))
-                result = discriminator(fake_data)
-                loss = F.mse_loss(result, Variable(torch.ones(1).cuda()))
-                loss.cuda()
-                loss.backward()
-                g_optimizer.step()
+        # Train generator
+        for _ in range(g_steps):
+            g_optimizer.zero_grad()
+            fake_data = generator(Variable(torch.randn(1, 3, 19, 19).cuda()))
+            result = discriminator(fake_data)
+            gen_loss = F.mse_loss(result, Variable(torch.ones(1).cuda()))
+            gen_loss.backward()
+            g_optimizer.step()
 
-        # Generate example image.
-        poke = generator(
-            Variable(torch.randn(1, 3, 308, 308).cuda())).data.cpu()
-        poke_pil = transforms.ToPILImage()(poke.view(4, 300, 300))
-        poke_pil.save("test.png")
+    # Generate example image.
+    poke = generator(
+        Variable(torch.randn(1, 3, 19, 19).cuda())).data.cpu()
+    poke_pil = transforms.ToPILImage()(poke.view(4, 300, 300))
+    poke_pil.save("test.png")
 
 
 def main():
-    train(30, 5, 5)
+    train(100, 5, 100)
 
 
 if __name__ == "__main__":
