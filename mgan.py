@@ -2,11 +2,12 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import optim
 from torch.utils.data import Dataset, DataLoader
 import glob
 from torchvision import transforms
 from PIL import Image
-from itertools import islice
+from itertools import islice, cycle
 
 # For truncation errors
 from PIL import ImageFile
@@ -62,7 +63,7 @@ class Discriminator(nn.Module):
         x = F.max_pool2d(x, 2, 2)
         x = x.view(-1, self._num_flat_features(x))
         x = F.leaky_relu(self.fc1(x))
-        x = F.leaky_relu(self.fc2(x))
+        x = self.fc2(x)
         return x
 
 
@@ -90,13 +91,14 @@ class Generator(nn.Module):
 
 
 def to_generator(iterator):
-    for x in iterator:
-        yield x
+    for _ in range(10000):
+        for x in iterator:
+            yield x
 
 def train(epochs, d_steps, g_steps):
     pokemon_dataset = Pokemon()
     pokemon_loader = torch.utils.data.DataLoader(pokemon_dataset,
-                                                 batch_size=d_steps,
+                                                 batch_size=1,
                                                  shuffle=True,
                                                  num_workers=4)
     pokemon_generator = to_generator(pokemon_loader)
@@ -104,8 +106,8 @@ def train(epochs, d_steps, g_steps):
     discriminator.cuda()
     generator = Generator()
     generator.cuda()
-    d_optimizer = torch.optim.Adam(discriminator.parameters())
-    g_optimizer = torch.optim.Adam(generator.parameters())
+    d_optimizer = optim.RMSprop(discriminator.parameters(), lr=5e-5)
+    g_optimizer = optim.RMSprop(generator.parameters(), lr=5e-5)
     for epoch in range(epochs):
         print(epoch)
         for (inputs, targets) in islice(pokemon_generator, d_steps):
@@ -113,28 +115,25 @@ def train(epochs, d_steps, g_steps):
             # Train on actual data.
             inputs = Variable(inputs.cuda())
             targets = Variable(targets.cuda())
-
-            result = discriminator(inputs)
-            loss = F.mse_loss(result, targets)
-            loss.cuda()
-            d_optimizer.zero_grad()
-            loss.backward()
-            d_optimizer.step()
+            real_result = discriminator(inputs)
             # Train on fake data.
-            for _ in range(d_steps):
-                fake_data = generator(Variable(torch.randn(1, 3, 19, 19).cuda()))
-                fake_result = discriminator(fake_data)
-                fake_loss = F.mse_loss(fake_result, Variable(torch.zeros(1).cuda()))
-                fake_loss.backward()
-                d_optimizer.step()
+            fake_inputs = generator(Variable(torch.randn(1, 3, 19, 19).cuda()))
+            fake_result = discriminator(fake_inputs)
+            d_loss = -(torch.mean(real_result) - torch.mean(fake_result))
+            d_loss.backward()
+            d_optimizer.step()
+
+            for p in discriminator.parameters():
+                p.data.clamp_(-0.01, 0.01)
+            
+            d_optimizer.zero_grad() 
             
         # Train generator
         for _ in range(g_steps):
             g_optimizer.zero_grad()
             fake_data = generator(Variable(torch.randn(1, 3, 19, 19).cuda()))
-            result = discriminator(fake_data)
-            gen_loss = F.mse_loss(result, Variable(torch.ones(1).cuda()))
-            gen_loss.backward()
+            g_loss = -torch.mean(discriminator(fake_data))
+            g_loss.backward()
             g_optimizer.step()
 
     # Generate example image.
@@ -145,7 +144,7 @@ def train(epochs, d_steps, g_steps):
 
 
 def main():
-    train(100, 5, 100)
+    train(1000, 30, 3)
 
 
 if __name__ == "__main__":
